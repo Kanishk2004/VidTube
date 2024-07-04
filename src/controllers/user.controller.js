@@ -35,6 +35,7 @@ const registerUser = AsyncHandler(async (req, res) => {
 	const { fullName, email, username, password } = req.body;
 
 	if ([fullName, email, username, password].some((field) => field?.trim() === "")) {
+		//to check if all fields are given or not
 		throw new ApiError(400, "All fields are required");
 	}
 
@@ -142,8 +143,8 @@ const logoutUser = AsyncHandler(async (req, res) => {
 	await User.findByIdAndUpdate(
 		req.user._id,
 		{
-			$set: {
-				refreshToken: undefined,
+			$unset: {
+				refreshToken: 1, // this removes the field from document
 			},
 		},
 		{
@@ -229,21 +230,29 @@ const getCurrentUser = AsyncHandler(async (req, res) => {
 });
 
 const updateAccountDetails = AsyncHandler(async (req, res) => {
-	const { fullName, email } = req.body;
+	const { username, fullName, email } = req.body;
 
-	if (!(fullName || email)) {
+	if (!(username || fullName || email)) {
 		throw new ApiError(400, "All fields are required");
+	}
+
+	const existedUser = await User.findOne({
+		$or: [{ username }, { email }],
+	});
+
+	if (existedUser) {
+		throw new ApiError(409, "Email and username must be unique");
 	}
 
 	const user = await User.findByIdAndUpdate(
 		req.user?._id,
 		{
-			$set: { fullName, email },
+			$set: {username, fullName, email },
 		},
 		{ new: true }
 	).select("-password");
 
-	return res.status(200).json(new ApiResponse(200, user, "Account details updates successfully"));
+	return res.status(200).json(new ApiResponse(200, user, "Account details updated successfully"));
 });
 
 const updateUserAvatar = AsyncHandler(async (req, res) => {
@@ -351,10 +360,11 @@ const getUserChannelProfile = AsyncHandler(async (req, res) => {
 				fullName: 1,
 				username: 1,
 				subscribersCount: 1,
-				channelsSubscribedToCount,
+				channelsSubscribedToCount: 1,
 				avatar: 1,
 				coverImage: 1,
 				email: 1,
+				isSubscribed: 1
 			},
 		},
 	]);
@@ -400,7 +410,7 @@ const getWatchHistory = AsyncHandler(async (req, res) => {
 						},
 					},
 					{
-						$add: {
+						$addFields: {
 							owner: {
 								$first: "$owner",
 							},
@@ -425,5 +435,5 @@ export {
 	updateUserAvatar,
 	updateUserCoverImage,
 	getUserChannelProfile,
-	getWatchHistory
+	getWatchHistory,
 };
