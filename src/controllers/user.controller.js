@@ -1,7 +1,7 @@
 import { AsyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.models.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { deleteAssetOnCloudinary, uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
@@ -69,7 +69,9 @@ const registerUser = AsyncHandler(async (req, res) => {
 	const user = await User.create({
 		fullName,
 		avatar: avatar.url,
+		avatar_public_id: avatar.public_id,
 		coverImage: coverImage?.url || "",
+		coverImage_public_id: coverImage?.public_id || "",
 		email,
 		password,
 		username: username.toLowerCase(),
@@ -246,7 +248,7 @@ const updateAccountDetails = AsyncHandler(async (req, res) => {
 	const user = await User.findByIdAndUpdate(
 		req.user?._id,
 		{
-			$set: {username, fullName, email },
+			$set: { username, fullName, email },
 		},
 		{ new: true }
 	).select("-password");
@@ -262,17 +264,21 @@ const updateUserAvatar = AsyncHandler(async (req, res) => {
 	}
 
 	const avatar = await uploadOnCloudinary(avatarLocalPath);
-	//TODO: Delete old image from cloudinary
 
 	if (!avatar.url) {
 		throw new ApiError(501, "Error while uploading on cloudinary");
 	}
+
+	//Delete old image from cloudinary
+	const oldUser = await User.findById(req.user?._id);
+	await deleteAssetOnCloudinary(oldUser.avatar_public_id);
 
 	const user = await User.findByIdAndUpdate(
 		req.user?._id,
 		{
 			$set: {
 				avatar: avatar.url,
+				avatar_public_id: avatar.public_id,
 			},
 		},
 		{ new: true }
@@ -289,10 +295,15 @@ const updateUserCoverImage = AsyncHandler(async (req, res) => {
 	}
 
 	const coverImage = await uploadOnCloudinary(coverImageLocalPath);
-	//TODO: Delete old image from cloudinary
 
 	if (!coverImage.url) {
 		throw new ApiError(501, "Error while uploading on cloudinary");
+	}
+
+	//Delete old image from cloudinary
+	const oldUser = await User.findById(req.user?._id);
+	if (!(oldUser?.coverImage_public_id === "")) {
+		await deleteAssetOnCloudinary(oldUser.coverImage_public_id);
 	}
 
 	const user = await User.findByIdAndUpdate(
@@ -300,6 +311,7 @@ const updateUserCoverImage = AsyncHandler(async (req, res) => {
 		{
 			$set: {
 				coverImage: coverImage.url,
+				coverImage_public_id: coverImage.public_id,
 			},
 		},
 		{ new: true }
@@ -363,7 +375,7 @@ const getUserChannelProfile = AsyncHandler(async (req, res) => {
 				avatar: 1,
 				coverImage: 1,
 				email: 1,
-				isSubscribed: 1
+				isSubscribed: 1,
 			},
 		},
 	]);
