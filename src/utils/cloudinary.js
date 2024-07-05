@@ -20,14 +20,20 @@ const uploadOnCloudinary = async (localfilepath) => {
 
 		//upload the file
 		const response = await cloudinary.uploader.upload(localfilepath, {
+			folder: "vidTube",
 			resource_type: "auto",
+			transformation: [
+				{
+					quality: "auto",
+				},
+			],
 		});
 		fs.unlinkSync(localfilepath); //deleting the locallly stored files after uploading on cloudinary
 		// console.log("File is uploaded on cloudinary", response.url);
 		return response;
 	} catch (error) {
 		fs.unlinkSync(localfilepath); //remove the locally saved temporary file as the upload operation failed
-		console.log(error)
+		console.log(error);
 	}
 };
 
@@ -36,12 +42,29 @@ const deleteAssetOnCloudinary = async (cloudinaryPublicId) => {
 		if (!cloudinaryPublicId) return null;
 
 		//delete the file
-		const response = await cloudinary.uploader.destroy(cloudinaryPublicId);
-		
+		const response = await cloudinary.uploader.destroy(cloudinaryPublicId, {
+			resource_type: "image",
+		});
+
 		return response;
 	} catch (error) {
-		console.log(error)
+		console.log(error);
 	}
 };
 
-export { uploadOnCloudinary, deleteAssetOnCloudinary };
+const deleteVideoOnCloudinary = async (cloudinaryPublicId) => {
+	try {
+		if (!cloudinaryPublicId) return null;
+
+		//delete the file
+		const response = await cloudinary.uploader.destroy(cloudinaryPublicId, {
+			resource_type: "video",
+		});
+
+		return response;
+	} catch (error) {
+		console.log(error);
+	}
+};
+
+export { uploadOnCloudinary, deleteAssetOnCloudinary, deleteVideoOnCloudinary };

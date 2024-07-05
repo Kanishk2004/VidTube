@@ -4,7 +4,7 @@ import { User } from "../models/user.models.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { AsyncHandler } from "../utils/asyncHandler.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { deleteAssetOnCloudinary, deleteVideoOnCloudinary, uploadOnCloudinary } from "../utils/cloudinary.js";
 
 const getAllVideos = AsyncHandler(async (req, res) => {
 	const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
@@ -12,23 +12,127 @@ const getAllVideos = AsyncHandler(async (req, res) => {
 });
 
 const publishAVideo = AsyncHandler(async (req, res) => {
-	const { title, description } = req.body;
 	// TODO: get video, upload to cloudinary, create video
+
+	//get video title, description from req.body
+	//validate the fields aren't empty
+	//check for video and thumbnail files - both are required
+	//upload to cloudinary
+	//get the owner ObjectId
+	//create video object - create entry in db
+	//check if video created in db
+	//return the video document and res
+
+	const { title, description } = req.body;
+	// console.log(title, description)
+
+	if (title?.trim() === "" || description?.trim() === "") {
+		throw new ApiError(400, "Title or description should not be empty");
+	}
+
+	const videoLocalPath = req.files?.videoFile[0]?.path;
+	const thumbnailLocalPath = req.files?.thumbnail[0]?.path;
+
+	if (!(videoLocalPath || thumbnailLocalPath)) {
+		throw new ApiError(400, "Video and thumbnail are required");
+	}
+
+	const videoUpload = await uploadOnCloudinary(videoLocalPath);
+	const thumbnailUpload = await uploadOnCloudinary(thumbnailLocalPath);
+
+	if (!(videoUpload || thumbnailUpload)) {
+		throw new ApiError(400, "Video and thumbail failed to upload on Cloudinary");
+	}
+
+	const video = await Video.create({
+		videoFile: videoUpload.url,
+		videoFilePublicId: videoUpload.public_id,
+		thumbnail: thumbnailUpload.url,
+		thumbnailPublicId: thumbnailUpload.public_id,
+		title,
+		description,
+		duration: videoUpload.duration, // in seconds and miliseconds
+		owner: new mongoose.Types.ObjectId(req.user._id),
+	});
+
+	return res.status(200).json(new ApiResponse(200, video, "Video published successfully"));
 });
 
 const getVideoById = AsyncHandler(async (req, res) => {
-	const { videoId } = req.params;
 	//TODO: get video by id
+	const { videoId } = req.params;
+
+	if (!videoId) {
+		throw new ApiError(400, "Invalid video id");
+	}
+
+	const video = await Video.findById(videoId);
+
+	return res.status(200).json(new ApiResponse(200, video, "Video fetched successfully!"));
 });
 
 const updateVideo = AsyncHandler(async (req, res) => {
+	//update video details like title, description, thumbnail
 	const { videoId } = req.params;
-	//TODO: update video details like title, description, thumbnail
+
+	if (!videoId.trim() === "") {
+		throw new ApiError(400, "Invalid video id");
+	}
+
+	const { title, description } = req.body;
+
+	if (title?.trim() === "" || description?.trim === "") {
+		throw new ApiError(400, "Title and description are required");
+	}
+
+	const video = await Video.findById(videoId);
+	// console.log(video.owner.toString() === req.user._id.toString()) - true
+
+	if (!(video.owner.toString() === req.user._id.toString())) {
+		throw new ApiError(400, "Only owner can update the video")
+	}
+
+	let thumbnailLocalPath;
+	let newThumbnail;
+	if (req.file) {
+		thumbnailLocalPath = req.file?.path;
+		newThumbnail = await uploadOnCloudinary(thumbnailLocalPath);
+		await deleteAssetOnCloudinary(video.thumbnailPublicId);
+	}
+
+	const oldThumbnail = video?.thumbnail;
+	const oldThumbnailPublicId = video?.thumbnailPublicId;
+
+	const updatedVideo = await Video.findByIdAndUpdate(
+		videoId,
+		{
+			$set: {
+				title,
+				description,
+				thumbnail: newThumbnail?.url || oldThumbnail,
+				thumbnailPublicId: newThumbnail?.public_id || oldThumbnailPublicId,
+			},
+		},
+		{ new: true }
+	);
+
+	return res.status(200).json(new ApiResponse(200, updatedVideo, "Video details updated successfully"));
 });
 
 const deleteVideo = AsyncHandler(async (req, res) => {
 	const { videoId } = req.params;
 	//TODO: delete video
+	if (!videoId) {
+		throw new ApiError(400, "Invalid video id")
+	}
+	
+	const video = await Video.findById(videoId);
+	await deleteAssetOnCloudinary(video.thumbnailPublicId);
+	await deleteVideoOnCloudinary(video.videoFilePublicId);
+
+	await Video.findByIdAndDelete(videoId);
+
+	return res.status(200).json(new ApiResponse(200, "Video deleted successfully", "Success"))
 });
 
 const togglePublishStatus = AsyncHandler(async (req, res) => {
