@@ -7,8 +7,44 @@ import { AsyncHandler } from "../utils/asyncHandler.js";
 import { deleteAssetOnCloudinary, deleteVideoOnCloudinary, uploadOnCloudinary } from "../utils/cloudinary.js";
 
 const getAllVideos = AsyncHandler(async (req, res) => {
-	const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
+	const { page = 1, limit = 5, query, sortBy, sortType, userId } = req.query;
 	//TODO: get all videos based on query, sort, pagination
+
+	// const options = {
+	// 	page: parseInt(page, 10),
+	// 	limit: parseInt(limit, 10),
+	// };
+
+	const pipeline = [];
+	
+	if (query) {
+		pipeline.push({
+			$match: { $text: { $search: query, $caseSensitive: false } },
+		});
+	}
+	if (userId) {
+		pipeline.push({
+			$match: { owner: new mongoose.Types.ObjectId(userId) },
+		});
+	}
+	if (sortBy) {
+		const sortOrder = sortType === "desc" ? -1 : 1;
+		pipeline.push({
+			$sort: { [sortBy]: sortOrder },
+		});
+	}
+
+	let myAggregate;
+	if (JSON.stringify(req.query) === "{}") {
+		myAggregate = await Video.find();
+	}
+
+	if (!(JSON.stringify(req.query) === "{}")) {
+		myAggregate = await Video.aggregate(pipeline);
+	}
+	// const result = await Video.aggregatePaginate(myAggregate, { page, limit });
+
+	return res.status(200).json(new ApiResponse(200, myAggregate, "Successfully fetched required data"));
 });
 
 const publishAVideo = AsyncHandler(async (req, res) => {
@@ -89,7 +125,7 @@ const updateVideo = AsyncHandler(async (req, res) => {
 	// console.log(video.owner.toString() === req.user._id.toString()) - true
 
 	if (!(video.owner.toString() === req.user._id.toString())) {
-		throw new ApiError(400, "Only owner can update the video")
+		throw new ApiError(400, "Only owner can update the video");
 	}
 
 	let thumbnailLocalPath;
@@ -123,20 +159,49 @@ const deleteVideo = AsyncHandler(async (req, res) => {
 	const { videoId } = req.params;
 	//TODO: delete video
 	if (!videoId) {
-		throw new ApiError(400, "Invalid video id")
+		throw new ApiError(400, "Invalid video id");
 	}
-	
+
 	const video = await Video.findById(videoId);
+
+	if (!(video.owner.toString() === req.user._id.toString())) {
+		throw new ApiError(400, "Only owner can delete the video");
+	}
+
 	await deleteAssetOnCloudinary(video.thumbnailPublicId);
 	await deleteVideoOnCloudinary(video.videoFilePublicId);
 
 	await Video.findByIdAndDelete(videoId);
 
-	return res.status(200).json(new ApiResponse(200, "Video deleted successfully", "Success"))
+	return res.status(200).json(new ApiResponse(200, "Video deleted successfully", "Success"));
 });
 
 const togglePublishStatus = AsyncHandler(async (req, res) => {
 	const { videoId } = req.params;
+
+	if (!videoId) {
+		throw new ApiError(400, "Invalid video id");
+	}
+
+	const video = await Video.findById(videoId);
+
+	if (!(video.owner.toString() === req.user._id.toString())) {
+		throw new ApiError(400, "Only owner can update the video");
+	}
+
+	const isPublished = video.isPublished;
+
+	const result = await Video.findByIdAndUpdate(
+		videoId,
+		{
+			$set: {
+				isPublished: !isPublished,
+			},
+		},
+		{ new: true }
+	);
+
+	res.status(200).json(new ApiResponse(200, result, "Successfully updated the published field"));
 });
 
 export { getAllVideos, publishAVideo, getVideoById, updateVideo, deleteVideo, togglePublishStatus };
