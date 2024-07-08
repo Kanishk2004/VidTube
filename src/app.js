@@ -33,7 +33,7 @@ import dashboardRouter from "./routes/dashboard.routes.js";
 app.use("/api/v1/healthcheck", healthcheckRouter); //done
 app.use("/api/v1/user", userRouter); //done
 app.use("/api/v1/tweets", tweetRouter); //done
-app.use("/api/v1/subscriptions", subscriptionRouter);
+app.use("/api/v1/subscriptions", subscriptionRouter); //done
 app.use("/api/v1/videos", videoRouter); //done
 app.use("/api/v1/comments", commentRouter); //done
 app.use("/api/v1/likes", likeRouter); //done
