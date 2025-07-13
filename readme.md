@@ -1,6 +1,58 @@
-# Summary of this project
+# 🎬 VidTube - Backend API for a Video Sharing Platform
 
-This project is a complex backend project that is built with nodejs, expressjs, mongodb, mongoose, jwt, bcrypt, and many more. This project is a complete backend project that has all the features that a backend project should have.
-We are building a complete video hosting website similar to youtube with all the features like login, signup, upload video, like, dislike, comment, reply, subscribe, unsubscribe, and many more.
+VidTube is a fully functional backend REST API for a YouTube-like platform. It handles user authentication, video uploading, likes/dislikes, subscriptions, and comments — all built using **Node.js**, **Express**, and **MongoDB**. This is the core engine that can power a full-stack video-sharing app.
 
-Project uses all standard practices like JWT, bcrypt, access tokens, refresh Tokens and many more. We have spent a lot of time in building this project and we are sure that you will learn a lot from this project.
+---
+
+## ⚙️ Tech Stack
+
+- **Node.js** & **Express.js** – Backend framework
+- **MongoDB** & **Mongoose** – NoSQL database & ODM
+- **JWT** – For user authentication
+- **Multer** (optional for file uploads)
+- **Dotenv** – For environment configuration
+- **Custom Middleware** – Auth, error handling, async handler
+
+---
+
+## 🔐 Features
+
+- ✅ User registration and login
+- 🔑 JWT-based authentication
+- 👤 User CRUD operations
+- 🎥 Video upload, update, delete, fetch
+- ❤️ Like & 👎 Dislike system
+- 💬 Comment system
+- 🔔 Subscriptions and channel-based video feeds
+- 🔍 Search and filter videos
+- 🛡️ Route protection with middleware
+
+---
+
+## 📁 Folder Structure
+
+VidTube/
+├── controllers/
+│ ├── authController.js
+│ ├── userController.js
+│ ├── videoController.js
+│ └── commentController.js
+├── models/
+│ ├── User.js
+│ ├── Video.js
+│ └── Comment.js
+├── routes/
+│ ├── authRoutes.js
+│ ├── userRoutes.js
+│ ├── videoRoutes.js
+│ └── commentRoutes.js
+├── middlewares/
+│ ├── verifyToken.js
+│ ├── errorHandler.js
+│ └── asyncHandler.js
+├── .env
+├── server.js
+└── package.json
+
+
+---
